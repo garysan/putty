@@ -17,7 +17,7 @@ This version of PuTTY is a fork of official PuTTy release, added some changes to
 - Nope :D
 
 ## Bug's
-Any bug please tell me in: https://github.com/garysan/putty/issues(https://github.com/garysan/4gl/issues)
+Any bug please tell me in: https://github.com/garysan/putty/issues
 
 ## Contact
 gary.gsv[at]gmail.com

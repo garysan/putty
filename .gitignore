@@ -114,6 +114,9 @@
 /putty-src/unix/stamp-h1
 /putty-src/unix/*.log
 /putty-src/unix/.deps
+/putty-src/windows/*.o
+/putty-src/windows/*.so
+/putty-src/windows/*.aps
 /putty-src/windows/*.pdb
 /putty-src/windows/*.ilk
 /putty-src/windows/*.res
@@ -139,6 +142,7 @@
 /putty-src/windows/DEVCPP
 /putty-src/windows/VS2010
 /putty-src/windows/VS2012
+/putty-src/windows/VS2019
 /putty-src/windows/*.log
 /putty-src/windows/*.GID
 /putty-src/windows/local

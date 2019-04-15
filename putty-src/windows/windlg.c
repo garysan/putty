@@ -50,6 +50,9 @@ static char *events_circular[LOGEVENT_CIRCULAR_MAX];
 static int ninitial = 0, ncircular = 0, circular_first = 0;
 
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
+///comentado por que no se usa en esta seccion
+#define PRINTCLIP_STRING "Enviar a texto"
+#define VISOR_STRING "Enviar a visor"
 
 void force_normal(HWND hwnd)
 {
@@ -241,7 +244,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
 	  case IDA_WEB:
 	    /* Load web browser */
 	    ShellExecute(hwnd, "open",
-			 "https://www.chiark.greenend.org.uk/~sgtatham/putty/",
+			 "http://www.axon.com.bo/",
 			 0, 0, SW_SHOWDEFAULT);
 	    return 0;
 	}

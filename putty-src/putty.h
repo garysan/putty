@@ -1393,6 +1393,10 @@ NORETURN void cleanup_exit(int);
     X(INT, NONE, window_border) /* in pixels */ \
     X(STR, NONE, answerback) \
     X(STR, NONE, printer) \
+    /*Variable para enviar a texto*/\
+	X(INT, NONE, printclip) \
+	/*Variable para enviar a visor*/\
+	X(INT, NONE, visor) \
     X(BOOL, NONE, arabicshaping) \
     X(BOOL, NONE, bidi) \
     /* Colour options */ \
@@ -1526,6 +1530,7 @@ void conf_del_str_str(Conf *conf, int key, const char *subkey);
 void conf_set_filename(Conf *conf, int key, const Filename *val);
 void conf_set_fontspec(Conf *conf, int key, const FontSpec *val);
 /* Serialisation functions for Duplicate Session */
+int conf_serialised_size(Conf *conf);
 void conf_serialise(BinarySink *bs, Conf *conf);
 bool conf_deserialise(Conf *conf, BinarySource *src);/*returns true on success*/
 

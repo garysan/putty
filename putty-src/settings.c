@@ -119,7 +119,17 @@ static void gpps(settings_r *sesskey, const char *name, const char *def,
 		 Conf *conf, int primary)
 {
     char *val = gpps_raw(sesskey, name, def);
-    conf_set_str(conf, primary, val);
+	conf_set_str(conf, primary, val);
+	// Establecer flag de envio a texto
+	if (!strcmp(val, "Enviar a texto"))
+		conf_set_int(conf, CONF_printclip,1);	
+	else
+		conf_set_int(conf, CONF_printclip,0);	
+	/*Visor*/
+	if (!strcmp(val, "Enviar a visor"))
+		conf_set_int(conf, CONF_visor,1);	
+	else
+		conf_set_int(conf, CONF_visor,0);	
     sfree(val);
 }
 

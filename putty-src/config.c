@@ -11,6 +11,8 @@
 #include "storage.h"
 
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
+#define PRINTCLIP_STRING "Enviar a texto"
+#define VISOR_STRING "Enviar a visor"
 
 #define HOST_BOX_TITLE "Host Name (or IP address)"
 #define PORT_BOX_TITLE "Port"
@@ -556,20 +558,39 @@ static void printerbox_handler(union control *ctrl, dlgparam *dlg,
 	if (ctrl->editbox.has_list) {
 	    dlg_listbox_clear(ctrl, dlg);
 	    dlg_listbox_add(ctrl, dlg, PRINTER_DISABLED_STRING);
+
+		/*A�adiendo printclip_string*/
+		dlg_listbox_add(ctrl, dlg, PRINTCLIP_STRING);
+		/*A�adiendo visor*/
+		dlg_listbox_add(ctrl, dlg, VISOR_STRING);
+
 	    pe = printer_start_enum(&nprinters);
 	    for (i = 0; i < nprinters; i++)
 		dlg_listbox_add(ctrl, dlg, printer_get_name(pe, i));
 	    printer_finish_enum(pe);
 	}
-	printer = conf_get_str(conf, CONF_printer);
+	printer = conf_get_str(conf, CONF_printer);	
 	if (!printer)
 	    printer = PRINTER_DISABLED_STRING;
 	dlg_editbox_set(ctrl, dlg, printer);
 	dlg_update_done(ctrl, dlg);
     } else if (event == EVENT_VALCHANGE) {
 	char *printer = dlg_editbox_get(ctrl, dlg);
-	if (!strcmp(printer, PRINTER_DISABLED_STRING))
+	if (!strcmp(printer, PRINTER_DISABLED_STRING)){
 	    printer[0] = '\0';
+		conf_set_int(conf, CONF_printclip,0);
+		conf_set_int(conf, CONF_visor,0);
+	}
+	///Establecer flag de envio a texto
+	if (!strcmp(printer, PRINTCLIP_STRING))
+		conf_set_int(conf, CONF_printclip,1);
+	else
+		conf_set_int(conf, CONF_printclip,0);
+	///Establecer flag de envio a visor
+	if (!strcmp(printer, VISOR_STRING))
+		conf_set_int(conf, CONF_visor,1);
+	else
+		conf_set_int(conf, CONF_visor,0);
 	conf_set_str(conf, CONF_printer, printer);
 	sfree(printer);
     }
@@ -667,6 +688,8 @@ static bool load_selected_session(
     load_settings(ssd->sesslist.sessions[i], conf);
     sfree(ssd->savedsession);
     ssd->savedsession = dupstr(isdef ? "" : ssd->sesslist.sessions[i]);
+	//Verificar session a cargar
+	//MessageBox(NULL, ssd->sesslist.sessions[i], "Cargar", MB_OK);
     if (maybe_launch)
         *maybe_launch = !isdef;
     dlg_refresh(NULL, dlg);
@@ -1559,7 +1582,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
      * The Load/Save panel is available even in mid-session.
      */
     s = ctrl_getset(b, "Session", "savedsessions",
-		    midsession ? "Save the current session settings" :
+		     midsession ? "Save the current session settings" :
 		    "Load, save or delete a stored session");
     ctrl_columns(s, 2, 75, 25);
     get_sesslist(&ssd->sesslist, true);
@@ -1605,7 +1628,7 @@ void setup_config_box(struct controlbox *b, bool midsession,
     ctrl_columns(s, 1, 100);
 
     s = ctrl_getset(b, "Session", "otheropts", NULL);
-    ctrl_radiobuttons(s, "Close window on exit:", 'x', 4,
+      ctrl_radiobuttons(s, "Close window on exit:", 'x', 4,
                       HELPCTX(session_coe),
                       conf_radiobutton_handler,
                       I(CONF_close_on_exit),
@@ -1886,8 +1909,8 @@ void setup_config_box(struct controlbox *b, bool midsession,
     /*
      * The Window/Appearance panel.
      */
-    str = dupprintf("Configure the appearance of %s's window", appname);
-    ctrl_settitle(b, "Window/Appearance", str);
+     str = dupprintf("Configure the appearance of %s's window", appname);
+     ctrl_settitle(b, "Window/Appearance", str);
     sfree(str);
 
     s = ctrl_getset(b, "Window/Appearance", "cursor",

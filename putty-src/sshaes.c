@@ -52,15 +52,17 @@
 #       define USE_CLANG_ATTR_TARGET_AARCH64
 #   endif
 #elif defined _MSC_VER
-    /* Visual Studio supports the crypto extension when targeting
-     * AArch64, but as of VS2017, the AArch32 header doesn't quite
-     * manage it (declaring the aese/aesd intrinsics without a round
-     * key operand). */
 #   if defined _M_ARM64
 #       define HW_AES HW_AES_NEON
-#       if defined _M_ARM64
-#           define USE_ARM64_NEON_H /* unusual header name in this case */
-#       endif
+        /* 64-bit Visual Studio uses the header <arm64_neon.h> in place
+         * of the standard <arm_neon.h> */
+#       define USE_ARM64_NEON_H
+#   elif defined _M_ARM
+#       define HW_AES HW_AES_NEON
+        /* 32-bit Visual Studio uses the right header name, but requires
+         * this #define to enable a set of intrinsic definitions that
+         * do not omit one of the parameters for vaes[ed]q_u8 */
+#       define _ARM_USE_NEW_NEON_INTRINSICS
 #   endif
 #endif
 
@@ -854,7 +856,7 @@ static void aes_sliced_key_setup(
          * Prepare a word of round key in the low 4 bits of each
          * integer in slices[].
          */
-	if (i < key_words) {
+        if (i < key_words) {
             memcpy(inblk, key + 4*i, 4);
             TO_BITSLICES(slices, inblk, uint16_t, =, 0);
         } else {
@@ -903,7 +905,7 @@ static void aes_sliced_key_setup(
             prevslices = sk->roundkeys_serial + 8 * (wordindex >> 2);
             for (size_t i = 0; i < 8; i++)
                 slices[i] ^= prevslices[i] >> bitshift;
-	}
+        }
 
         /*
          * Now copy it into sk.
@@ -1319,10 +1321,10 @@ static FUNC_ISA void aes_ni_key_expand(
     unsigned rconpos = 0;
 
     for (size_t i = 0; i < sched_words; i++) {
-	if (i < key_words) {
+        if (i < key_words) {
             sched[i] = GET_32BIT_LSB_FIRST(key + 4 * i);
         } else {
-	    uint32_t temp = sched[i - 1];
+            uint32_t temp = sched[i - 1];
 
             bool rotate_and_round_constant = (i % key_words == 0);
             bool only_sub = (key_words == 8 && i % 8 == 4);
@@ -1341,7 +1343,7 @@ static FUNC_ISA void aes_ni_key_expand(
             }
 
             sched[i] = sched[i - key_words] ^ temp;
-	}
+        }
     }
 
     /*
@@ -1623,10 +1625,10 @@ static FUNC_ISA void aes_neon_key_expand(
     unsigned rconpos = 0;
 
     for (size_t i = 0; i < sched_words; i++) {
-	if (i < key_words) {
+        if (i < key_words) {
             sched[i] = GET_32BIT_LSB_FIRST(key + 4 * i);
         } else {
-	    uint32_t temp = sched[i - 1];
+            uint32_t temp = sched[i - 1];
 
             bool rotate_and_round_constant = (i % key_words == 0);
             bool sub = rotate_and_round_constant ||
@@ -1649,7 +1651,7 @@ static FUNC_ISA void aes_neon_key_expand(
             }
 
             sched[i] = sched[i - key_words] ^ temp;
-	}
+        }
     }
 
     /*

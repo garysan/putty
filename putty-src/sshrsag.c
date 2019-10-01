@@ -7,10 +7,10 @@
 #include "ssh.h"
 #include "mpint.h"
 
-#define RSA_EXPONENT 37		       /* we like this prime */
+#define RSA_EXPONENT 37                /* we like this prime */
 
 int rsa_generate(RSAKey *key, int bits, progfn_t pfn,
-		 void *pfnparam)
+                 void *pfnparam)
 {
     unsigned pfirst, qfirst;
 
@@ -38,7 +38,7 @@ int rsa_generate(RSAKey *key, int bits, progfn_t pfn,
      * P(1-P), in three with probability P(1-P)^2, etc. The
      * probability that we have still not managed to find a prime
      * after N attempts is (1-P)^N.
-     * 
+     *
      * We therefore inform the progress indicator of the number B
      * (29.34/B), so that it knows how much to increment by each
      * time. We do this in 16-bit fixed point, so 29.34 becomes
@@ -71,15 +71,26 @@ int rsa_generate(RSAKey *key, int bits, progfn_t pfn,
      * but it doesn't cost much to make sure.)
      */
     invent_firstbits(&pfirst, &qfirst, 2);
-    mp_int *p = primegen(bits / 2, RSA_EXPONENT, 1, NULL,
-                            1, pfn, pfnparam, pfirst);
-    mp_int *q = primegen(bits - bits / 2, RSA_EXPONENT, 1, NULL,
-                            2, pfn, pfnparam, qfirst);
+    int qbits = bits / 2;
+    int pbits = bits - qbits;
+    assert(pbits >= qbits);
+    mp_int *p = primegen(pbits, RSA_EXPONENT, 1, NULL,
+                         1, pfn, pfnparam, pfirst);
+    mp_int *q = primegen(qbits, RSA_EXPONENT, 1, NULL,
+                         2, pfn, pfnparam, qfirst);
 
     /*
      * Ensure p > q, by swapping them if not.
+     *
+     * We only need to do this if the two primes were generated with
+     * the same number of bits (i.e. if the requested key size is
+     * even) - otherwise it's already guaranteed!
      */
-    mp_cond_swap(p, q, mp_cmp_hs(q, p));
+    if (pbits == qbits) {
+        mp_cond_swap(p, q, mp_cmp_hs(q, p));
+    } else {
+        assert(mp_cmp_hs(p, q));
+    }
 
     /*
      * Now we have p, q and e. All we need to do now is work out

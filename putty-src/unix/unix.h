@@ -5,10 +5,10 @@
 # include "uxconfig.h" /* Space to hide it from mkfiles.pl */
 #endif
 
-#include <stdio.h>		       /* for FILENAME_MAX */
-#include <stdint.h>		       /* C99 int types */
+#include <stdio.h>                     /* for FILENAME_MAX */
+#include <stdint.h>                    /* C99 int types */
 #ifndef NO_LIBDL
-#include <dlfcn.h>		       /* Dynamic library loading */
+#include <dlfcn.h>                     /* Dynamic library loading */
 #endif /*  NO_LIBDL */
 #include "charset.h"
 #include <sys/types.h>         /* for mode_t */
@@ -95,8 +95,8 @@ extern const struct BackendVtable pty_backend;
 /* Simple wraparound timer function */
 unsigned long getticks(void);
 #define GETTICKCOUNT getticks
-#define TICKSPERSEC    1000	       /* we choose to use milliseconds */
-#define CURSORBLINK     450	       /* no standard way to set this */
+#define TICKSPERSEC    1000            /* we choose to use milliseconds */
+#define CURSORBLINK     450            /* no standard way to set this */
 
 #define WCHAR wchar_t
 #define BYTE unsigned char
@@ -267,7 +267,7 @@ int keysym_to_unicode(int keysym);
 char *x_get_default(const char *key);
 
 /* Things uxstore.c provides to gtkwin.c */
-void provide_xrm_string(char *string);
+void provide_xrm_string(const char *string, const char *progname);
 
 /* Function that {gtkapp,gtkmain}.c needs from ux{pterm,putty}.c. Does
  * early process setup that varies between applications (e.g.
@@ -341,7 +341,7 @@ void gtk_setup_config_box(
  * from the command line or config files is assumed to be encoded).
  */
 #define DEFAULT_CODEPAGE 0xFFFF
-#define CP_UTF8 CS_UTF8		       /* from libcharset */
+#define CP_UTF8 CS_UTF8                /* from libcharset */
 
 #define strnicmp strncasecmp
 #define stricmp strcasecmp
@@ -369,6 +369,7 @@ bool init_ucs(struct unicode_data *ucsdata, char *line_codepage,
  * Spare functions exported directly from uxnet.c.
  */
 void *sk_getxdmdata(Socket *sock, int *lenp);
+int sk_net_get_fd(Socket *sock);
 SockAddr *unix_sock_addr(const char *path);
 Socket *new_unix_listener(SockAddr *listenaddr, Plug *plug);
 
@@ -420,6 +421,16 @@ extern char **pty_argv;
  */
 char *gtk_askpass_main(const char *display, const char *wintitle,
                        const char *prompt, bool *success);
+
+/*
+ * procnet.c.
+ */
+bool socket_peer_is_same_user(int fd);
+static inline bool sk_peer_trusted(Socket *sock)
+{
+    int fd = sk_net_get_fd(sock);
+    return fd >= 0 && socket_peer_is_same_user(fd);
+}
 
 /*
  * uxsftpserver.c.

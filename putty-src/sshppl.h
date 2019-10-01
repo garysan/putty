@@ -10,7 +10,7 @@
 typedef void (*packet_handler_fn_t)(PacketProtocolLayer *ppl, PktIn *pktin);
 
 struct PacketProtocolLayerVtable {
-    void (*free)(PacketProtocolLayer *); 
+    void (*free)(PacketProtocolLayer *);
     void (*process_queue)(PacketProtocolLayer *ppl);
     bool (*get_specials)(
         PacketProtocolLayer *ppl, add_special_fn_t add_special, void *ctx);
@@ -103,11 +103,11 @@ PacketProtocolLayer *ssh2_transport_new(
     const char *client_greeting, const char *server_greeting,
     struct ssh_connection_shared_gss_state *shgss,
     struct DataTransferStats *stats, PacketProtocolLayer *higher_layer,
-    bool is_server);
+    const SshServerConfig *ssc);
 PacketProtocolLayer *ssh2_userauth_new(
     PacketProtocolLayer *successor_layer,
     const char *hostname, const char *fullhostname,
-    Filename *keyfile, bool tryagent,
+    Filename *keyfile, bool show_banner, bool tryagent,
     const char *default_username, bool change_username,
     bool try_ki_auth,
     bool try_gssapi_auth, bool try_gssapi_kex_auth,

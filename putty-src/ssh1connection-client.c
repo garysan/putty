@@ -468,16 +468,16 @@ static void ssh1_rportfwd_response(struct ssh1_connection_state *s,
     struct ssh_rportfwd *rpf = (struct ssh_rportfwd *)ctx;
 
     if (success) {
-	ppl_logevent("Remote port forwarding from %s enabled",
+        ppl_logevent("Remote port forwarding from %s enabled",
                      rpf->log_description);
     } else {
-	ppl_logevent("Remote port forwarding from %s refused",
+        ppl_logevent("Remote port forwarding from %s refused",
                      rpf->log_description);
 
-	struct ssh_rportfwd *realpf = del234(s->rportfwds, rpf);
-	assert(realpf == rpf);
+        struct ssh_rportfwd *realpf = del234(s->rportfwds, rpf);
+        assert(realpf == rpf);
         portfwdmgr_close(s->portfwdmgr, rpf->pfr);
-	free_rportfwd(rpf);
+        free_rportfwd(rpf);
     }
 }
 
@@ -525,4 +525,9 @@ SshChannel *ssh1_serverside_x11_open(
 SshChannel *ssh1_serverside_agent_open(ConnectionLayer *cl, Channel *chan)
 {
     unreachable("Should never be called in the client");
+}
+
+bool ssh1_connection_need_antispoof_prompt(struct ssh1_connection_state *s)
+{
+    return !seat_set_trust_status(s->ppl.seat, false);
 }

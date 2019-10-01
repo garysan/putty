@@ -63,7 +63,7 @@ struct ssh1_login_state {
     PacketProtocolLayer ppl;
 };
 
-static void ssh1_login_free(PacketProtocolLayer *); 
+static void ssh1_login_free(PacketProtocolLayer *);
 static void ssh1_login_process_queue(PacketProtocolLayer *);
 static void ssh1_login_dialog_callback(void *, int);
 static void ssh1_login_special_cmd(PacketProtocolLayer *ppl,
@@ -217,8 +217,11 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         return;
     }
 
-    s->len = (s->hostkey.bytes > s->servkey.bytes ?
-              s->hostkey.bytes : s->servkey.bytes);
+    s->len = 32;
+    if (s->len < s->hostkey.bytes)
+        s->len = s->hostkey.bytes;
+    if (s->len < s->servkey.bytes)
+        s->len = s->servkey.bytes;
 
     s->rsabuf = snewn(s->len, unsigned char);
 
@@ -289,8 +292,8 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         bool cipher_chosen = false, warn = false;
         const char *cipher_string = NULL;
         int i;
-	for (i = 0; !cipher_chosen && i < CIPHER_MAX; i++) {
-	    int next_cipher = conf_get_int_int(
+        for (i = 0; !cipher_chosen && i < CIPHER_MAX; i++) {
+            int next_cipher = conf_get_int_int(
                 s->conf, CONF_ssh_cipherlist, i);
             if (next_cipher == CIPHER_WARN) {
                 /* If/when we choose a cipher, warn about it */
@@ -300,11 +303,11 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                 ppl_logevent("AES not supported in SSH-1, skipping");
             } else {
                 switch (next_cipher) {
-                  case CIPHER_3DES:     s->cipher_type = SSH_CIPHER_3DES;
+                  case CIPHER_3DES:     s->cipher_type = SSH1_CIPHER_3DES;
                     cipher_string = "3DES"; break;
-                  case CIPHER_BLOWFISH: s->cipher_type = SSH_CIPHER_BLOWFISH;
+                  case CIPHER_BLOWFISH: s->cipher_type = SSH1_CIPHER_BLOWFISH;
                     cipher_string = "Blowfish"; break;
-                  case CIPHER_DES:      s->cipher_type = SSH_CIPHER_DES;
+                  case CIPHER_DES:      s->cipher_type = SSH1_CIPHER_DES;
                     cipher_string = "single-DES"; break;
                 }
                 if (s->supported_ciphers_mask & (1 << s->cipher_type))
@@ -312,7 +315,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
             }
         }
         if (!cipher_chosen) {
-            if ((s->supported_ciphers_mask & (1 << SSH_CIPHER_3DES)) == 0) {
+            if ((s->supported_ciphers_mask & (1 << SSH1_CIPHER_3DES)) == 0) {
                 ssh_proto_error(s->ppl.ssh, "Server violates SSH-1 protocol "
                                 "by not supporting 3DES encryption");
             } else {
@@ -336,13 +339,13 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
     }
 
     switch (s->cipher_type) {
-      case SSH_CIPHER_3DES:
+      case SSH1_CIPHER_3DES:
         ppl_logevent("Using 3DES encryption");
         break;
-      case SSH_CIPHER_DES:
+      case SSH1_CIPHER_DES:
         ppl_logevent("Using single-DES encryption");
         break;
-      case SSH_CIPHER_BLOWFISH:
+      case SSH1_CIPHER_BLOWFISH:
         ppl_logevent("Using Blowfish encryption");
         break;
     }
@@ -369,8 +372,8 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
 
     {
         const ssh_cipheralg *cipher =
-            (s->cipher_type == SSH_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
-             s->cipher_type == SSH_CIPHER_DES ? &ssh_des : &ssh_3des_ssh1);
+            (s->cipher_type == SSH1_CIPHER_BLOWFISH ? &ssh_blowfish_ssh1 :
+             s->cipher_type == SSH1_CIPHER_DES ? &ssh_des : &ssh_3des_ssh1);
         ssh1_bpp_new_cipher(s->ppl.bpp, cipher, s->session_key);
     }
 
@@ -950,29 +953,29 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
              * SSH1_MSG_IGNORE packets. This way a passive
              * listener can't tell which is the password, and
              * hence can't deduce the password length.
-             * 
+             *
              * Anybody with a password length greater than 16
              * bytes is going to have enough entropy in their
              * password that a listener won't find it _that_
              * much help to know how long it is. So what we'll
              * do is:
-             * 
+             *
              *  - if password length < 16, we send 15 packets
              *    containing string lengths 1 through 15
-             * 
+             *
              *  - otherwise, we let N be the nearest multiple
              *    of 8 below the password length, and send 8
              *    packets containing string lengths N through
              *    N+7. This won't obscure the order of
              *    magnitude of the password length, but it will
              *    introduce a bit of extra uncertainty.
-             * 
+             *
              * A few servers can't deal with SSH1_MSG_IGNORE, at
              * least in this context. For these servers, we need
              * an alternative defence. We make use of the fact
              * that the password is interpreted as a C string:
              * so we can append a NUL, then some random data.
-             * 
+             *
              * A few servers can deal with neither SSH1_MSG_IGNORE
              * here _nor_ a padded password string.
              * For these servers we are left with no defences
@@ -1012,7 +1015,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
                     }
                 }
                 ppl_logevent("Sending password with camouflage packets");
-            } 
+            }
             else if (!(s->ppl.remote_bugs & BUG_NEEDS_SSH1_PLAIN_PASSWORD)) {
                 /*
                  * The server can't deal with SSH1_MSG_IGNORE
@@ -1067,7 +1070,7 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
         put_uint32(pkt, 6);         /* gzip compression level */
         pq_push(s->ppl.out_pq, pkt);
         crMaybeWaitUntilV((pktin = ssh1_login_pop(s)) != NULL);
-	if (pktin->type == SSH1_SMSG_SUCCESS) {
+        if (pktin->type == SSH1_SMSG_SUCCESS) {
             /*
              * We don't have to actually do anything here: the SSH-1
              * BPP will take care of automatically starting the
@@ -1076,15 +1079,15 @@ static void ssh1_login_process_queue(PacketProtocolLayer *ppl)
              * easiest way to avoid race conditions if other packets
              * cross in transit.)
              */
-	} else if (pktin->type == SSH1_SMSG_FAILURE) {
+        } else if (pktin->type == SSH1_SMSG_FAILURE) {
             ppl_logevent("Server refused to enable compression");
-	    ppl_printf("Server refused to compress\r\n");
+            ppl_printf("Server refused to compress\r\n");
         } else {
             ssh_proto_error(s->ppl.ssh, "Received unexpected packet"
                             " in response to compression request, type %d "
                             "(%s)", pktin->type, ssh1_pkt_type(pktin->type));
             return;
-	}
+        }
     }
 
     ssh1_connection_set_protoflags(

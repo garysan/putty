@@ -11,6 +11,8 @@
 #include "storage.h"
 
 #define PRINTER_DISABLED_STRING "None (printing disabled)"
+#define PRINTCLIP_STRING "Enviar a texto"
+#define VISOR_STRING "Enviar a visor"
 
 #define HOST_BOX_TITLE "Host Name (or IP address)"
 #define PORT_BOX_TITLE "Port"
@@ -556,6 +558,12 @@ static void printerbox_handler(union control *ctrl, dlgparam *dlg,
         if (ctrl->editbox.has_list) {
             dlg_listbox_clear(ctrl, dlg);
             dlg_listbox_add(ctrl, dlg, PRINTER_DISABLED_STRING);
+
+			/*Añadiendo printclip_string*/
+			dlg_listbox_add(ctrl, dlg, PRINTCLIP_STRING);
+			/*Añadiendo visor*/
+			dlg_listbox_add(ctrl, dlg, VISOR_STRING);
+
             pe = printer_start_enum(&nprinters);
             for (i = 0; i < nprinters; i++)
                 dlg_listbox_add(ctrl, dlg, printer_get_name(pe, i));
@@ -568,11 +576,24 @@ static void printerbox_handler(union control *ctrl, dlgparam *dlg,
         dlg_update_done(ctrl, dlg);
     } else if (event == EVENT_VALCHANGE) {
         char *printer = dlg_editbox_get(ctrl, dlg);
-        if (!strcmp(printer, PRINTER_DISABLED_STRING))
-            printer[0] = '\0';
-        conf_set_str(conf, CONF_printer, printer);
-        sfree(printer);
-    }
+        if (!strcmp(printer, PRINTER_DISABLED_STRING)) {
+			printer[0] = '\0';
+			conf_set_int(conf, CONF_printclip, 0);
+			conf_set_int(conf, CONF_visor, 0);
+		}
+		///Establecer flag de envio a texto
+		if (!strcmp(printer, PRINTCLIP_STRING))
+			conf_set_int(conf, CONF_printclip, 1);
+		else
+			conf_set_int(conf, CONF_printclip, 0);
+		///Establecer flag de envio a visor
+		if (!strcmp(printer, VISOR_STRING))
+			conf_set_int(conf, CONF_visor, 1);
+		else
+			conf_set_int(conf, CONF_visor, 0);
+		conf_set_str(conf, CONF_printer, printer);
+		sfree(printer);
+	}
 }
 
 static void codepage_handler(union control *ctrl, dlgparam *dlg,

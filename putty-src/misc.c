@@ -251,8 +251,14 @@ char *buildinfo(const char *newline)
      * anomalous first clause. That way the patch looks nicer when you
      * add extra ones.
      */
+#elif _MSC_VER == 1923
+	strbuf_catf(buf, " 2019 (16.3)");
+#elif _MSC_VER == 1922
+	strbuf_catf(buf, " 2019 (16.2)");
+#elif _MSC_VER == 1921
+	strbuf_catf(buf, " 2019 (16.1)");
 #elif _MSC_VER == 1920
-    strbuf_catf(buf, " 2019 (16.x)");
+    strbuf_catf(buf, " 2019 (16.0)");
 #elif _MSC_VER == 1916
     strbuf_catf(buf, " 2017 version 15.9");
 #elif _MSC_VER == 1915

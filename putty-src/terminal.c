@@ -8,6 +8,10 @@
 #include <limits.h>
 #include <wchar.h>
 
+ ///////Inclusion por printclip
+#include <math.h>
+#include <string.h>
+
 #include <time.h>
 #include <assert.h>
 #include "putty.h"
@@ -1592,13 +1596,221 @@ void term_reconfig(Terminal *term, Conf *conf)
         term->sco_acs = term->alt_sco_acs = 0;
         term->utf = false;
     }
-    if (!conf_get_str(term->conf, CONF_printer)) {
+	///cambio printclip + visor
+	if (!conf_get_str(term->conf, CONF_printer)
+		||conf_get_int(term->conf, CONF_printclip)
+		||conf_get_int(term->conf, CONF_visor)
+		) {
         term_print_finish(term);
     }
     term_schedule_tblink(term);
     term_schedule_cblink(term);
     term_copy_stuff_from_conf(term);
 }
+
+/*
+ * Windows clipboard
+ * Gary Sandi Vigabriel, 2012
+ * based on windows clipboard by diomidis spinellis.
+ */
+
+static char* clip_b, * clip_bp;			/* Buffer, pointer to buffer insertion point */
+static size_t clip_bsiz, clip_remsiz;	/* Buffer, size, remaining size */
+static size_t clip_total;			/* Total read */
+
+#define CLIP_CHUNK 4096
+
+static void clipboard_init(void)
+{
+	if (clip_b)
+		sfree(clip_b);
+	clip_bp = clip_b = smalloc(clip_remsiz = clip_bsiz = CLIP_CHUNK);
+	clip_total = 0;
+}
+
+static void clipboard_data(void* buff, int len)
+{
+	memcpy(clip_bp, buff, len);
+	clip_remsiz -= len;
+	clip_total += len;
+	clip_bp += len;
+	if (clip_remsiz < CLIP_CHUNK) {
+		clip_b = srealloc(clip_b, clip_bsiz *= 2);
+		clip_remsiz = clip_bsiz - clip_total;
+		clip_bp = clip_b + clip_total;
+	}
+}
+
+static void clipboard_copy(void)
+{
+	HANDLE hglb;
+
+	if (!OpenClipboard(NULL))
+		return; // error("Unable to open the clipboard");
+	if (!EmptyClipboard()) {
+		CloseClipboard();
+		return; // error("Unable to empty the clipboard");
+	}
+
+	hglb = GlobalAlloc(GMEM_DDESHARE, clip_total + 1);
+	if (hglb == NULL) {
+		CloseClipboard();
+		return; // error("Unable to allocate clipboard memory");
+	}
+	memcpy(hglb, clip_b, clip_total);
+	((char*)hglb)[clip_total] = '\0';
+	SetClipboardData(CF_TEXT, hglb);
+	CloseClipboard();
+}
+
+
+
+/*
+ * Funciones propias para verificar notepad++ y el espacio en el disco (por seguridad)
+ *
+ */
+
+static int fileexists(const char* filename) {
+	FILE* file;
+	//MessageBox(NULL,filename,"ffff",MB_OK);
+
+	if (file = fopen(filename, "r")) {
+		fclose(file);
+		return 1;
+	}
+	return 0;
+}
+
+void remove_cache()
+{
+	WIN32_FIND_DATA findFileData;
+	HANDLE          hFind;
+	hFind = FindFirstFile("*.txt", &findFileData);
+	while (FindNextFile(hFind, &findFileData) != 0)
+	{
+		//MessageBox(NULL, findFileData.cFileName, "Borrar", MB_OK);
+		remove(findFileData.cFileName);
+	}
+}
+
+
+double Convert(char* str)
+{
+	double d = atof(str);
+	//d = d/pow10(precision);
+	return(d);
+}
+double tamtotal = 0;
+char str[31];
+char sts[31];
+void FindExt(void)
+{
+	WIN32_FIND_DATA findFileData;
+	HANDLE          hFind;
+	hFind = FindFirstFile("*.txt", &findFileData);
+
+	while (FindNextFile(hFind, &findFileData) != 0)
+	{
+		FILE* fich;
+		fich = fopen(findFileData.cFileName, "r");
+		fseek(fich, 0L, SEEK_END);
+		sprintf(str, "%d", ftell(fich));
+		tamtotal = tamtotal + Convert(str);
+		fclose(fich);
+		//MessageBox(NULL, str, "winclip", MB_OK);
+	}
+
+	////Verificar sumatoria total de tamtotal
+
+	sprintf(sts, "%lf", tamtotal);
+	//MessageBox(NULL, sts, "winclip", MB_OK);
+	//200MB=209715200
+	//100MB=104857600
+	//80MB=83886080
+	//20MB=20971520
+	//1MB=1048576
+	///Se cambia el cache a 20MB
+	if (Convert(sts) > 20971520)
+	{
+		//char sts[31];
+		//sprintf(sts,"Tama\F1o: %lf",tamtotal);
+		//MessageBox(NULL, sts, "winclip", MB_OK);
+		remove_cache();
+	}
+}
+
+char output[20];
+char narchivo[100];
+char rarchivo[100];
+char arg[100];
+////variables simples
+char npplus[100];
+char binVisor[100];
+///directorios
+char windir[100];
+char profiles[100];
+char rutaPutty[100];
+
+void procesar_texto(int flag)
+{
+	time_t tiempo = time(0);
+	struct tm* tlocal = localtime(&tiempo);
+	strftime(output, 20, "%d%m%y_%H%M%S", tlocal);
+	/*establecer nombres*/
+	strcpy(narchivo, "temporal_");
+	strcat(narchivo, output);
+	strcat(narchivo, ".txt");
+
+	strcpy(rarchivo, getenv("TEMP"));
+	strcat(rarchivo, "\\");
+	strcat(rarchivo, narchivo);
+
+	// set programfiles
+	strcpy(profiles, getenv("PROGRAMFILES"));
+	// set notepad ++
+	strcpy(npplus, profiles);
+	strcat(npplus, "\\notepad++\\notepad++.exe");
+	// set programfiles del putty
+	strcpy(rutaPutty, profiles);
+	strcat(rutaPutty, "\\PuTTY");
+	// set ruta visor
+	strcpy(binVisor, getenv("SYSTEMDRIVE"));
+	strcat(binVisor, "\\axon\\Visor\\VisorImpresion.exe");
+
+	/*Cambio de procesamiento de archivos*/
+	if (flag == 0) {
+		garysan(rarchivo);
+	}
+	if (flag == 1 || flag == 2) {
+		garysan(rarchivo);
+	}
+
+	if (flag == 0 || flag == 1) {////enviar a texto
+		if (fileexists(npplus)) {
+			if (fileexists(rarchivo))
+				ShellExecute(NULL, "Open", npplus, rarchivo, NULL, SW_SHOWNORMAL);
+		}
+		else {///si no hay notepad++ ir por notepad normal
+			if (fileexists(rarchivo))
+				ShellExecute(NULL, "Open", "notepad.exe", rarchivo, NULL, SW_SHOWNORMAL);
+		}
+	}
+	if (flag == 2) {////enviar al visor
+		if (fileexists(binVisor)) {
+			if (fileexists(rarchivo))
+				ShellExecute(NULL, "Open", binVisor, rarchivo, NULL, SW_SHOWNORMAL);
+		}
+		else {///No existe el visor
+			MessageBox(NULL, "No existe Visor\n Notifiquelo al departamento de sistemas para solucionar el problema.", "VISOR", MB_OK);
+		}
+	}
+	FindExt();///para limipiar cache de archivos.
+}
+
+/*
+ *Fin funciones propias y printclip
+ */
+
 
 /*
  * Clear the scrollback.
@@ -2786,6 +2998,11 @@ static void do_osc(Terminal *term)
 static void term_print_setup(Terminal *term, char *printer)
 {
     bufchain_clear(&term->printer_buf);
+	//Cambios por printerclip + visor
+	//term->print_job = printer_start_job(printer);
+	if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
+		clipboard_init();
+	else
     term->print_job = printer_start_job(printer);
 }
 static void term_print_flush(Terminal *term)
@@ -2795,8 +3012,13 @@ static void term_print_flush(Terminal *term)
         ptrlen data = bufchain_prefix(&term->printer_buf);
         if (data.len > size-5)
             data.len = size-5;
-        printer_job_data(term->print_job, data.ptr, data.len);
-        bufchain_consume(&term->printer_buf, data.len);
+			//Cambios por printerclip
+			//printer_job_data(term->print_job, data.ptr, data.len);
+			if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
+				clipboard_data(data.ptr, data.len);
+			else
+			printer_job_data(term->print_job, data.ptr, data.len);
+			bufchain_consume(&term->printer_buf, data.len);
     }
 }
 static void term_print_finish(Terminal *term)
@@ -2815,11 +3037,27 @@ static void term_print_finish(Terminal *term)
             bufchain_consume(&term->printer_buf, size);
             break;
         } else {
+			//Cambios por printerclip
+			//printer_job_data(term->print_job, &c, 1);
+			if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
+				clipboard_data(&c, 1);
+			else
             printer_job_data(term->print_job, &c, 1);
             bufchain_consume(&term->printer_buf, 1);
         }
-    }
-    printer_finish_job(term->print_job);
+	}
+	//Cambios por printerclip
+	//printer_finish_job(term->print_job);
+	if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor)) {
+		clipboard_copy();
+		if (conf_get_int(term->conf, CONF_printclip))
+			procesar_texto(1);
+		if (conf_get_int(term->conf, CONF_visor))
+			procesar_texto(2);
+	}
+	else {
+		printer_finish_job(term->print_job);
+	}
     term->print_job = NULL;
     term->printing = term->only_printing = false;
 }
@@ -3974,6 +4212,17 @@ static void term_out(Terminal *term)
                             if (term->esc_args[0] == 5 &&
                                 (printer = conf_get_str(term->conf,
                                                         CONF_printer))[0]) {
+								//Cambio por printclip	
+								if (!strcmp(printer, "Enviar a texto"))
+									conf_set_int(term->conf, CONF_printclip, 1);
+								else
+									conf_set_int(term->conf, CONF_printclip, 0);
+								/*Visor*/
+								if (!strcmp(printer, "Enviar a visor"))
+									conf_set_int(term->conf, CONF_visor, 1);
+								else
+									conf_set_int(term->conf, CONF_visor, 0);
+
                                 term->printing = true;
                                 term->only_printing = !term->esc_query;
                                 term->print_state = 0;
@@ -6071,6 +6320,10 @@ static void clipme(Terminal *term, pos top, pos bottom, bool rect, bool desel,
             sfree(buf.textbuf);
             sfree(buf.attrbuf);
             sfree(buf.tcbuf);
+			////printclip pantalla a texto
+			if (term->selstate != DRAGGING) {
+				procesar_texto(0);
+			}
         }
     }
 }

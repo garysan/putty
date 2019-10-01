@@ -1393,6 +1393,10 @@ NORETURN void cleanup_exit(int);
     X(INT, NONE, window_border) /* in pixels */ \
     X(STR, NONE, answerback) \
     X(STR, NONE, printer) \
+	/*Variable para enviar a texto*/\
+	X(INT, NONE, printclip) \
+	/*Variable para enviar a visor*/\
+	X(INT, NONE, visor) \
     X(BOOL, NONE, no_arabicshaping) \
     X(BOOL, NONE, no_bidi) \
     /* Colour options */ \

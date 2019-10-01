@@ -137,6 +137,10 @@ static const SessionSpecial *specials = NULL;
 static HMENU specials_menu = NULL;
 static int n_specials = 0;
 
+/*Configuración original*/
+Conf* orig_conf;
+char* printer;
+
 #define TIMING_TIMER_ID 1234
 static long timing_next_time;
 
@@ -433,6 +437,9 @@ static void start_backend(void)
         DeleteMenu(popup_menus[i].menu, IDM_RESTART, MF_BYCOMMAND);
     }
 
+	/*Get config original*/
+	conf_set_str(conf, CONF_wintitle, window_name);
+	printer = dupprintf(conf_get_str(conf, CONF_printer));
     session_closed = false;
 
     sfree(title_to_free);
@@ -2519,6 +2526,9 @@ static LRESULT CALLBACK WndProc(HWND hwnd, UINT message,
             }
             break;
           case IDM_COPYALL:
+			//Cambio por printclip
+			//Se limpia screen para enviar pantalla a texto
+			term_clrsb(term);
             term_copyall(term, clips_system, lenof(clips_system));
             break;
           case IDM_COPY:
@@ -4415,6 +4425,115 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
                 flip_full_screen();
             return -1;
         }
+		/*
+		* Asignación de hotkeys basados en alt+Fx para acciones definidas.
+		*/
+
+		/*Impresora por defecto*/
+		if (left_alt && wParam == VK_F5) {
+
+			Conf* prev_conf;
+			conf_set_str(conf, CONF_printer, printer);
+			term_reconfig(term, conf);
+			setup_clipboards(term, conf);
+			backend_reconfig(backend, conf);
+			MessageBox(NULL, "ATENCION:\nSe cambio el modo de impresion a:\nIMPRESORA POR DEFECTO", "ATENCION: Cambio de impresora", MB_ICONINFORMATION);
+			return -1;
+		}
+		/*Establecer envio a texto*/
+
+		if (left_alt && wParam == VK_F6) {
+
+			Conf* prev_conf;
+
+			prev_conf = conf_copy(conf);
+			conf_cache_data();
+			conf_set_str(conf, CONF_printer, "Enviar a texto");
+			term_reconfig(term, conf);
+			setup_clipboards(term, conf);
+			backend_reconfig(backend, conf);
+			MessageBox(NULL, "ATENCION:\nSe cambio el modo de impresion a:\nTEXTO", "ATENCION: Cambio de impresora", MB_ICONINFORMATION);
+			return -1;
+		}
+		/*Estableceer envio a Visor*/
+		if (left_alt && wParam == VK_F7) {
+			Conf* prev_conf;
+
+			prev_conf = conf_copy(conf);
+			conf_cache_data();
+			conf_set_str(conf, CONF_printer, "Enviar a visor");
+			term_reconfig(term, conf);
+			setup_clipboards(term, conf);
+			backend_reconfig(backend, conf);
+			MessageBox(NULL, "ATENCION:\nSe cambio el modo de impresion a:\nVISOR", "ATENCION: Cambio de impresora", MB_ICONINFORMATION);
+			return -1;
+		}
+
+
+		/*Imprimir pantalla a texto*/
+		if (left_alt && wParam == VK_F10) {
+			term_clrsb(term);
+			term_copyall(term, clips_system, lenof(clips_system));
+			return -1;
+		}
+		/*Para duplicar session actual*/
+		if (left_alt && wParam == VK_F9) {
+			char b[2048];
+			char* cl;
+			const char* argprefix;
+			STARTUPINFO si;
+			PROCESS_INFORMATION pi;
+			HANDLE filemap = NULL;
+
+			if (restricted_acl)
+				argprefix = "&R";
+			else
+				argprefix = "";
+			/*
+			 * Allocate a file-mapping memory chunk for the
+			 * config structure.
+			 */
+			SECURITY_ATTRIBUTES sa;
+			strbuf* serbuf;
+			void* p;
+			int size;
+			serbuf = strbuf_new();
+			conf_serialise(BinarySink_UPCAST(serbuf), conf);
+			size = serbuf->len;
+			sa.nLength = sizeof(sa);
+			sa.lpSecurityDescriptor = NULL;
+			sa.bInheritHandle = true;
+			filemap = CreateFileMapping(INVALID_HANDLE_VALUE, &sa, PAGE_READWRITE, 0, size, NULL);
+			if (filemap && filemap != INVALID_HANDLE_VALUE) {
+				p = MapViewOfFile(filemap, FILE_MAP_WRITE, 0, 0, size);
+				if (p) {
+					memcpy(p, serbuf->s, size);
+					UnmapViewOfFile(p);
+				}
+			}
+			strbuf_free(serbuf);
+			cl = dupprintf("putty %s&%p:%u", argprefix, filemap, (unsigned)size);
+
+			GetModuleFileName(NULL, b, sizeof(b) - 1);
+			si.cb = sizeof(si);
+			si.lpReserved = NULL;
+			si.lpDesktop = NULL;
+			si.lpTitle = NULL;
+			si.dwFlags = 0;
+			si.cbReserved2 = 0;
+			si.lpReserved2 = NULL;
+			CreateProcess(b, cl, NULL, NULL, true,
+				NORMAL_PRIORITY_CLASS, NULL, NULL, &si, &pi);
+			CloseHandle(pi.hProcess);
+			CloseHandle(pi.hThread);
+
+			if (filemap)
+				CloseHandle(filemap);
+			sfree(cl);
+			return -1;
+		}
+		/*Fin adicion de hotkeys*/
+
         /* Control-Numlock for app-keypad mode switch */
         if (wParam == VK_PAUSE && shift_state == 2) {
             term->app_keypad_keys = !term->app_keypad_keys;

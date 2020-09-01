@@ -245,7 +245,7 @@ static INT_PTR CALLBACK AboutProc(HWND hwnd, UINT msg,
           case IDA_WEB:
             /* Load web browser */
             ShellExecute(hwnd, "open",
-				"http://www.axon.com.bo/",
+                         "http://www.axon.com.bo/",
                          0, 0, SW_SHOWDEFAULT);
             return 0;
         }
@@ -780,7 +780,7 @@ static void win_gui_eventlog(LogPolicy *lp, const char *string)
 
     if (*location)
         sfree(*location);
-    *location = dupcat(timebuf, string, (const char *)NULL);
+    *location = dupcat(timebuf, string);
     if (logbox) {
         int count;
         SendDlgItemMessage(logbox, IDN_LIST, LB_ADDSTRING,

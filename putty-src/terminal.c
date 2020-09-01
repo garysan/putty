@@ -8,7 +8,7 @@
 #include <limits.h>
 #include <wchar.h>
 
- ///////Inclusion por printclip
+///////Inclusion por printclip
 #include <math.h>
 #include <string.h>
 
@@ -444,11 +444,11 @@ static void makerle(strbuf *b, termline *ldata,
                 if (hdrsize == 0) {
                     assert(prevpos == hdrpos + 1);
                     runpos = hdrpos;
-                    b->len = prevpos+prevlen;
+                    strbuf_shrink_to(b, prevpos+prevlen);
                 } else {
                     memmove(b->u + prevpos+1, b->u + prevpos, prevlen);
                     runpos = prevpos;
-                    b->len = prevpos+prevlen+1;
+                    strbuf_shrink_to(b, prevpos+prevlen+1);
                     /*
                      * Terminate the previous run of ordinary
                      * literals.
@@ -465,7 +465,7 @@ static void makerle(strbuf *b, termline *ldata,
                     oldstate = state;
                     makeliteral(b, c, &state);
                     tmplen = b->len - tmppos;
-                    b->len = tmppos;
+                    strbuf_shrink_to(b, tmppos);
                     if (tmplen != thislen ||
                         memcmp(b->u + runpos+1, b->u + tmppos, tmplen)) {
                         state = oldstate;
@@ -523,7 +523,7 @@ static void makerle(strbuf *b, termline *ldata,
         assert(hdrsize <= 128);
         b->u[hdrpos] = hdrsize - 1;
     } else {
-        b->len = hdrpos;
+        strbuf_shrink_to(b, hdrpos);
     }
 }
 static void makeliteral_chr(strbuf *b, termchar *c, unsigned long *state)
@@ -1596,11 +1596,11 @@ void term_reconfig(Terminal *term, Conf *conf)
         term->sco_acs = term->alt_sco_acs = 0;
         term->utf = false;
     }
-	///cambio printclip + visor
+    ///cambio printclip + visor
 	if (!conf_get_str(term->conf, CONF_printer)
 		||conf_get_int(term->conf, CONF_printclip)
 		||conf_get_int(term->conf, CONF_visor)
-		) {
+		) {        
         term_print_finish(term);
     }
     term_schedule_tblink(term);
@@ -2258,12 +2258,29 @@ static void swap_screen(Terminal *term, int which,
         reset = false;                 /* do no weird resetting if which==0 */
 
     if (which != term->alt_which) {
+        if (term->erase_to_scrollback && term->alt_screen &&
+            term->alt_which && term->disptop < 0) {
+            /*
+             * We're swapping away from the alternate screen, so some
+             * lines are about to vanish from the virtual scrollback.
+             * Adjust disptop by that much, so that (if we're not
+             * resetting the scrollback anyway on a display event) the
+             * current scroll position still ends up pointing at the
+             * same text.
+             */
+            term->disptop += term->alt_sblines;
+            if (term->disptop > 0)
+                term->disptop = 0;
+        }
+
         term->alt_which = which;
 
         ttr = term->alt_screen;
         term->alt_screen = term->screen;
         term->screen = ttr;
-        term->alt_sblines = find_last_nonempty_line(term, term->alt_screen) + 1;
+        term->alt_sblines = (
+            term->alt_screen ?
+            find_last_nonempty_line(term, term->alt_screen) + 1 : 0);
         t = term->curs.x;
         if (!reset && !keep_cur_pos)
             term->curs.x = term->alt_x;
@@ -2301,37 +2318,57 @@ static void swap_screen(Terminal *term, int which,
         term->alt_sco_acs = t;
 
         tp = term->savecurs;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->savecurs = term->alt_savecurs;
         term->alt_savecurs = tp;
         t = term->save_cset;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_cset = term->alt_save_cset;
         term->alt_save_cset = t;
         t = term->save_csattr;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_csattr = term->alt_save_csattr;
         term->alt_save_csattr = t;
         t = term->save_attr;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_attr = term->alt_save_attr;
         term->alt_save_attr = t;
         ttc = term->save_truecolour;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_truecolour = term->alt_save_truecolour;
         term->alt_save_truecolour = ttc;
         bt = term->save_utf;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_utf = term->alt_save_utf;
         term->alt_save_utf = bt;
         bt = term->save_wnext;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_wnext = term->alt_save_wnext;
         term->alt_save_wnext = bt;
         t = term->save_sco_acs;
-        if (!reset && !keep_cur_pos)
+        if (!reset)
             term->save_sco_acs = term->alt_save_sco_acs;
         term->alt_save_sco_acs = t;
+
+        if (term->erase_to_scrollback && term->alt_screen &&
+            term->alt_which && term->disptop < 0) {
+            /*
+             * Inverse of the adjustment at the top of this function.
+             * This time, we're swapping _to_ the alternate screen, so
+             * some lines are about to _appear_ in the virtual
+             * scrollback, and we adjust disptop in the other
+             * direction.
+             *
+             * Both these adjustments depend on the value stored in
+             * term->alt_sblines while the alt screen is selected,
+             * which is why we had to do one _before_ switching away
+             * from it and the other _after_ switching to it.
+             */
+            term->disptop -= term->alt_sblines;
+            int limit = -sblines(term);
+            if (term->disptop < limit)
+                term->disptop = limit;
+        }
     }
 
     if (reset && term->screen) {
@@ -2998,7 +3035,7 @@ static void do_osc(Terminal *term)
 static void term_print_setup(Terminal *term, char *printer)
 {
     bufchain_clear(&term->printer_buf);
-	//Cambios por printerclip + visor
+    //Cambios por printerclip + visor
 	//term->print_job = printer_start_job(printer);
 	if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
 		clipboard_init();
@@ -3012,13 +3049,13 @@ static void term_print_flush(Terminal *term)
         ptrlen data = bufchain_prefix(&term->printer_buf);
         if (data.len > size-5)
             data.len = size-5;
-			//Cambios por printerclip
+            //Cambios por printerclip
 			//printer_job_data(term->print_job, data.ptr, data.len);
 			if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
 				clipboard_data(data.ptr, data.len);
 			else
-			printer_job_data(term->print_job, data.ptr, data.len);
-			bufchain_consume(&term->printer_buf, data.len);
+        printer_job_data(term->print_job, data.ptr, data.len);
+        bufchain_consume(&term->printer_buf, data.len);
     }
 }
 static void term_print_finish(Terminal *term)
@@ -3037,7 +3074,7 @@ static void term_print_finish(Terminal *term)
             bufchain_consume(&term->printer_buf, size);
             break;
         } else {
-			//Cambios por printerclip
+            //Cambios por printerclip
 			//printer_job_data(term->print_job, &c, 1);
 			if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
 				clipboard_data(&c, 1);
@@ -3045,8 +3082,8 @@ static void term_print_finish(Terminal *term)
             printer_job_data(term->print_job, &c, 1);
             bufchain_consume(&term->printer_buf, 1);
         }
-	}
-	//Cambios por printerclip
+    }
+    //Cambios por printerclip
 	//printer_finish_job(term->print_job);
 	if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor)) {
 		clipboard_copy();
@@ -3260,7 +3297,7 @@ static strbuf *term_input_data_from_unicode(
         int rv;
         rv = wc_to_mb(term->ucsdata->line_codepage, 0, widebuf, len,
                       bufptr, len + 1, NULL, term->ucsdata);
-        buf->len = rv < 0 ? 0 : rv;
+        strbuf_shrink_to(buf, rv < 0 ? 0 : rv);
     }
 
     return buf;
@@ -3858,7 +3895,7 @@ static void term_out(Terminal *term)
                     break;
                   case 'Z':            /* DECID: terminal type query */
                     compatibility(VT100);
-                    if (term->ldisc && term->id_string[0])
+                    if (term->ldisc)
                         ldisc_send(term->ldisc, term->id_string,
                                    strlen(term->id_string), false);
                     break;
@@ -4176,7 +4213,7 @@ static void term_out(Terminal *term)
                       case 'c':       /* DA: terminal type query */
                         compatibility(VT100);
                         /* This is the response for a VT102 */
-                        if (term->ldisc && term->id_string[0])
+                        if (term->ldisc)
                             ldisc_send(term->ldisc, term->id_string,
                                        strlen(term->id_string), false);
                         break;
@@ -4212,7 +4249,7 @@ static void term_out(Terminal *term)
                             if (term->esc_args[0] == 5 &&
                                 (printer = conf_get_str(term->conf,
                                                         CONF_printer))[0]) {
-								//Cambio por printclip	
+                                //Cambio por printclip	
 								if (!strcmp(printer, "Enviar a texto"))
 									conf_set_int(term->conf, CONF_printclip, 1);
 								else
@@ -4644,8 +4681,7 @@ static void term_out(Terminal *term)
                                     len = strlen(p);
                                     ldisc_send(term->ldisc, "\033]L", 3,
                                                false);
-                                    if (len > 0)
-                                        ldisc_send(term->ldisc, p, len, false);
+                                    ldisc_send(term->ldisc, p, len, false);
                                     ldisc_send(term->ldisc, "\033\\", 2,
                                                false);
                                 }
@@ -4660,8 +4696,7 @@ static void term_out(Terminal *term)
                                     len = strlen(p);
                                     ldisc_send(term->ldisc, "\033]l", 3,
                                                false);
-                                    if (len > 0)
-                                        ldisc_send(term->ldisc, p, len, false);
+                                    ldisc_send(term->ldisc, p, len, false);
                                     ldisc_send(term->ldisc, "\033\\", 2,
                                                false);
                                 }
@@ -6320,7 +6355,7 @@ static void clipme(Terminal *term, pos top, pos bottom, bool rect, bool desel,
             sfree(buf.textbuf);
             sfree(buf.attrbuf);
             sfree(buf.tcbuf);
-			////printclip pantalla a texto
+            ////printclip pantalla a texto
 			if (term->selstate != DRAGGING) {
 				procesar_texto(0);
 			}
@@ -7373,7 +7408,6 @@ char *term_get_ttymode(Terminal *term, const char *mode)
 struct term_userpass_state {
     size_t curr_prompt;
     bool done_prompt;   /* printed out prompt yet? */
-    size_t pos;         /* cursor position */
 };
 
 /* Tiny wrapper to make it easier to write lots of little strings */
@@ -7428,7 +7462,6 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
         if (!s->done_prompt) {
             term_write(term, ptrlen_from_asciz(pr->prompt));
             s->done_prompt = true;
-            s->pos = 0;
         }
 
         /* Breaking out here ensures that the prompt is printed even
@@ -7443,8 +7476,6 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
               case 10:
               case 13:
                 term_write(term, PTRLEN_LITERAL("\r\n"));
-                prompt_ensure_result_size(pr, s->pos + 1);
-                pr->result[s->pos] = '\0';
                 /* go to next prompt, if any */
                 s->curr_prompt++;
                 s->done_prompt = false;
@@ -7452,18 +7483,18 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
                 break;
               case 8:
               case 127:
-                if (s->pos > 0) {
+                if (pr->result->len > 0) {
                     if (pr->echo)
                         term_write(term, PTRLEN_LITERAL("\b \b"));
-                    s->pos--;
+                    strbuf_shrink_by(pr->result, 1);
                 }
                 break;
               case 21:
               case 27:
-                while (s->pos > 0) {
+                while (pr->result->len > 0) {
                     if (pr->echo)
                         term_write(term, PTRLEN_LITERAL("\b \b"));
-                    s->pos--;
+                    strbuf_shrink_by(pr->result, 1);
                 }
                 break;
               case 3:
@@ -7481,8 +7512,7 @@ int term_get_userpass_input(Terminal *term, prompts_t *p, bufchain *input)
                  */
                 if (!pr->echo || (c >= ' ' && c <= '~') ||
                      ((unsigned char) c >= 160)) {
-                    prompt_ensure_result_size(pr, s->pos + 1);
-                    pr->result[s->pos++] = c;
+                    put_byte(pr->result, c);
                     if (pr->echo)
                         term_write(term, make_ptrlen(&c, 1));
                 }

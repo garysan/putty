@@ -50,9 +50,7 @@ static  BOOL    ClipCopy(OPTIONS *opt) {
     if (lp) {
         if (fp)
             fputs(lp, fp);
-            
-         GlobalUnlock(hd);
-         rv = TRUE;			// flag success
+                  rv = TRUE;			// flag success
     } 
     if (fp)
         fclose(fp);

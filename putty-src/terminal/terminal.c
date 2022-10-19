@@ -1945,18 +1945,35 @@ void procesar_texto(int flag)
 	strcat(binVisor, "\\Axon\\Visor\\VisorImpresion.exe");
 
 	/*Cambio de procesamiento de archivos*/
-    if (OpenClipboard(NULL)) {
-        hd = GetClipboardData(CF_TEXT);
-        lp = GlobalLock(hd);
-        GlobalUnlock(hd);
-        if (lp) {
-            fp = fopen(rarchivo, "wb");
-            fputs(lp, fp);
-            fclose(fp);
-            EmptyClipboard();
+    if (!OpenClipboard(NULL)) {
+        return FALSE;
+    }
+
+    hd = GetClipboardData(CF_TEXT);
+    if (!hd) {
+        CloseClipboard();
+        return FALSE;
+    }
+
+    if (rarchivo) {
+        fp = fopen(rarchivo, "wb");
+        if (!fp) {
             CloseClipboard();
+            return FALSE;
         }
     }
+    else
+        fp = NULL;
+
+    lp = (LPSTR)GlobalLock(hd);
+    if (lp) {
+        if (fp)
+            fputs(lp, fp);
+    }
+    if (fp)
+        fclose(fp);
+    EmptyClipboard();
+    CloseClipboard();
     
     // fin clipboard
 	

@@ -8,6 +8,7 @@
  * default stuff used for local development runs of 'make'.
  */
 
-#define TEXTVER "Release 0.77 - Gary Sandi Vigabriel - gary.gsv@gmail.com"
-#define SSHVER "-Release-0.77"
-#define BINARY_VERSION 0,77,0,0
+#define TEXTVER "Release 0.78 - Gary Sandi Vigabriel - gary.gsv@gmail.com"
+#define SSHVER "-Release-0.78"
+#define BINARY_VERSION 0,78,0,0
+

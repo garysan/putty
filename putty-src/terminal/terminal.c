@@ -1732,7 +1732,7 @@ void term_reconfig(Terminal *term, Conf *conf)
         term->sco_acs = term->alt_sco_acs = 0;
         term->utf = false;
     }
-     ///cambio printclip + visor
+    ///cambio printclip + visor
 	if (!conf_get_str(term->conf, CONF_printer)
 		||conf_get_int(term->conf, CONF_printclip)
 		||conf_get_int(term->conf, CONF_visor)
@@ -3452,13 +3452,13 @@ static void term_print_flush(Terminal *term)
         ptrlen data = bufchain_prefix(&term->printer_buf);
         if (data.len > size-5)
             data.len = size-5;
-		//Cambios por printerclip
-		//printer_job_data(term->print_job, data.ptr, data.len);
-		if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
-			clipboard_data(data.ptr, data.len);
-		else
-        	printer_job_data(term->print_job, data.ptr, data.len);
-        	bufchain_consume(&term->printer_buf, data.len);
+            //Cambios por printerclip
+			//printer_job_data(term->print_job, data.ptr, data.len);
+			if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
+				clipboard_data(data.ptr, data.len);
+			else
+        printer_job_data(term->print_job, data.ptr, data.len);
+        bufchain_consume(&term->printer_buf, data.len);
     }
 }
 static void term_print_finish(Terminal *term)
@@ -3477,13 +3477,13 @@ static void term_print_finish(Terminal *term)
             bufchain_consume(&term->printer_buf, size);
             break;
         } else {
-         	//Cambios por printerclip
+            //Cambios por printerclip
 			//printer_job_data(term->print_job, &c, 1);
 			if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
 				clipboard_data(&c, 1);
 			else
-            	printer_job_data(term->print_job, &c, 1);
-            	bufchain_consume(&term->printer_buf, 1);
+                printer_job_data(term->print_job, &c, 1);
+                bufchain_consume(&term->printer_buf, 1);
         }
     }
     //Cambios por printerclip
@@ -4702,7 +4702,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
                         if (term->esc_args[0] == 5 &&
                             (printer = conf_get_str(term->conf,
                                                     CONF_printer))[0]) {
-                            	//Cambio por printclip	
+                            //Cambio por printclip	
 								if (!strcmp(printer, "Enviar a texto"))
 									conf_set_int(term->conf, CONF_printclip, 1);
 								else
@@ -4712,6 +4712,7 @@ static void term_out(Terminal *term, bool called_from_term_data)
 									conf_set_int(term->conf, CONF_visor, 1);
 								else
 									conf_set_int(term->conf, CONF_visor, 0);
+
                             term->printing = true;
                             term->only_printing = !term->esc_query;
                             term->print_state = 0;

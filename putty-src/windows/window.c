@@ -34,6 +34,7 @@
 // printclip
 #define PRINTCLIP_STRING "Enviar a texto"
 #define VISOR_STRING "Enviar a visor"
+
 /* From MSDN: In the WM_SYSCOMMAND message, the four low-order bits of
  * wParam are used by Windows, and should be masked off, so we shouldn't
  * attempt to store information in them. Hence all these identifiers have

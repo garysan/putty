@@ -1,6 +1,6 @@
 # Pure cmake script to write out cmake_commit.c and cmake_version.but
 
-set(DEFAULT_COMMIT "unavailable")
+set(DEFAULT_COMMIT "4ff82ab29a22936b78510c68f544a99e677efed3")
 set(commit "${DEFAULT_COMMIT}")
 
 set(TOPLEVEL_SOURCE_DIR ${CMAKE_SOURCE_DIR})

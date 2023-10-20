@@ -150,3 +150,14 @@ Makefile
 /days
 *.sln
 *.user
+/Release
+/Debug
+/build
+*.tlog
+*.log
+/doc/Release
+/ssh/Release
+/windows/Release
+/ssh/Release
+/crypto/Release
+*.pdb

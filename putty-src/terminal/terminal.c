@@ -1883,8 +1883,6 @@ static void clipboard_copy(void)
 
 static int fileexists(const char* filename) {
 	FILE* file;
-	//MessageBox(NULL,filename,"ffff",MB_OK);
-
 	if (file = fopen(filename, "r")) {
 		fclose(file);
 		return 1;
@@ -1892,65 +1890,11 @@ static int fileexists(const char* filename) {
 	return 0;
 }
 
-void remove_cache()
-{
-	WIN32_FIND_DATA findFileData;
-	HANDLE          hFind;
-	hFind = FindFirstFile("*.txt", &findFileData);
-	while (FindNextFile(hFind, &findFileData) != 0)
-	{
-		//MessageBox(NULL, findFileData.cFileName, "Borrar", MB_OK);
-		remove(findFileData.cFileName);
-	}
-}
-
-
 double Convert(char* str)
 {
 	double d = atof(str);
 	//d = d/pow10(precision);
 	return(d);
-}
-double tamtotal = 0;
-char str[31];
-char sts[31];
-void clean_temporal_files(void)
-{
-	WIN32_FIND_DATA findFileData;
-	HANDLE          hFind;
-	hFind = FindFirstFile("*.txt", &findFileData);
-
-	while (FindNextFile(hFind, &findFileData) != 0)
-	{
-		FILE* fich;
-		fich = fopen(findFileData.cFileName, "r");
-		fseek(fich, 0L, SEEK_END);
-		sprintf(str, "%d", ftell(fich));
-		tamtotal = tamtotal + Convert(str);
-		fclose(fich);
-		//MessageBox(NULL, str, "winclip", MB_OK);
-	}
-
-	////Verificar sumatoria total de tamtotal
-
-	sprintf(sts, "%lf", tamtotal);
-	//MessageBox(NULL, sts, "winclip", MB_OK);
-    //10000MB=1677721600
-    //800MB=838860800
-    //400MB=419430400 
-	//200MB=209715200
-	//100MB=104857600
-	//80MB=83886080
-	//20MB=20971520
-	//1MB=1048576
-	///Se cambia el cache a 1000MB
-	if (Convert(sts) > 1677721600)
-	{
-		//char sts[31];
-		//sprintf(sts,"Tama\F1o: %lf",tamtotal);
-		//MessageBox(NULL, sts, "winclip", MB_OK);
-		remove_cache();
-	}
 }
 
 char output[20];
@@ -1967,15 +1911,40 @@ char windir[100];
 char programfilesX86[100];
 char programfilesX64[100];
 char rutaPutty[100];
+char noBorrar[100];
 
-void procesar_texto(int flag)
+void procesar_texto(Terminal* term)
 {
+    char path[300];
+    char delfile[300];
+    WIN32_FIND_DATA findFileData;
+    HANDLE hFind;
     HANDLE hd;
     LPSTR lp;
     FILE* fp;
     time_t tiempo = time(0);
     struct tm* tlocal = localtime(&tiempo);
     strftime(output, 20, "%d%m%y_%H%M%S", tlocal);
+
+    strcpy(noBorrar, "noBorrarTemporales.putty");
+    if (fileexists(noBorrar)) {
+        // No borrar temporales   
+    }
+    else {
+        /*Dejar solo el archivo procesado*/
+        strcpy(path, getenv("TEMP"));
+        strcat(path, "\\temporal_*.txt");
+        hFind = FindFirstFile(path, &findFileData);
+        // borrar el primero encontrado 
+        while (FindNextFile(hFind, &findFileData) != 0)
+        {
+            strcpy(delfile, getenv("TEMP"));
+            strcat(delfile, "\\");
+            strcat(delfile, findFileData.cFileName);
+            remove(delfile);
+        }
+    }
+
     /*establecer nombres*/
     strcpy(narchivo, "temporal_");
     strcat(narchivo, output);
@@ -2041,7 +2010,7 @@ void procesar_texto(int flag)
     
     // fin clipboard
 	
-	if (flag == 1) {////enviar a texto
+	if (conf_get_int(term->conf, CONF_printclip)) {////enviar a texto
 		if (fileexists(npplus)) {
 			if (fileexists(rarchivo))
 				ShellExecute(NULL, "Open", npplus, rarchivo, NULL, SW_SHOWNORMAL);
@@ -2051,7 +2020,7 @@ void procesar_texto(int flag)
 				ShellExecute(NULL, "Open", "notepad.exe", rarchivo, NULL, SW_SHOWNORMAL);
 		}
 	}
-	if (flag == 2) {////enviar al visor
+	if (conf_get_int(term->conf, CONF_visor)) {////enviar al visor
 		if (fileexists(binVisor)) {
 			if (fileexists(rarchivo))
 				ShellExecute(NULL, "Open", binVisor, rarchivo, NULL, SW_SHOWNORMAL);
@@ -2060,7 +2029,6 @@ void procesar_texto(int flag)
 			MessageBox(NULL, "No existe Visor\n contacte con AXON.", "VISOR", MB_OK);
 		}
 	}
-	clean_temporal_files();///para limipiar cache de archivos.
 }
 
 /*
@@ -3534,7 +3502,6 @@ static void term_print_flush(Terminal *term)
 			else
         		printer_job_data(term->print_job, data.ptr, data.len);
         	bufchain_consume(&term->printer_buf, data.len);
-        	
     }
 }
 static void term_print_finish(Terminal *term)
@@ -3559,23 +3526,20 @@ static void term_print_finish(Terminal *term)
 				clipboard_data(&c, 1);
 			else
                 printer_job_data(term->print_job, &c, 1);
-                bufchain_consume(&term->printer_buf, 1);
+            bufchain_consume(&term->printer_buf, 1);
         }
     }
-    //Cambios por printerclip
-	//printer_finish_job(term->print_job);
-	if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor)) {
-        if ((size = bufchain_size(&term->printer_buf)) > 0) {
-            clipboard_copy();
-            if (conf_get_int(term->conf, CONF_printclip))
-                procesar_texto(1);
-            if (conf_get_int(term->conf, CONF_visor))
-                procesar_texto(2);
+    if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor)){
+        clipboard_copy();
+        //term_clrsb(term);
+        bufchain_clear(&term->printer_buf);
+        if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor)) {
+            procesar_texto(term);
         }
-	}
-	else {
-		printer_finish_job(term->print_job);
-	}
+    }
+    else{
+        printer_finish_job(term->print_job);
+    }
     term->print_job = NULL;
     term->printing = term->only_printing = false;
 }
@@ -4821,7 +4785,6 @@ static void term_out(Terminal *term, bool called_from_term_data)
 									conf_set_int(term->conf, CONF_visor, 1);
 								else
 									conf_set_int(term->conf, CONF_visor, 0);
-
                             term->printing = true;
                             term->only_printing = !term->esc_query;
                             term->print_state = 0;

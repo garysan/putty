@@ -673,30 +673,66 @@ static void printerbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
                 dlg_listbox_add(ctrl, dlg, printer_get_name(pe, i));
             printer_finish_enum(pe);
         }
-        printer = conf_get_str(conf, CONF_printer);
-        if (!printer)
-            printer = PRINTER_DISABLED_STRING;
-        dlg_editbox_set(ctrl, dlg, printer);
-        dlg_update_done(ctrl, dlg);
+        if (conf_get_int(conf, CONF_printclip) ) {
+            printer = conf_get_str(conf, CONF_printer);
+            if (printer)
+                dlg_editbox_set(ctrl, dlg, conf_get_str(conf, CONF_printer));
+            else if (conf_get_int(conf, CONF_printclip))
+                dlg_editbox_set(ctrl, dlg, PRINTCLIP_STRING);
+            else
+                dlg_editbox_set(ctrl, dlg, PRINTER_DISABLED_STRING);
+            dlg_update_done(ctrl, dlg);
+        }
+        else if (conf_get_int(conf, CONF_visor)) {
+            printer = conf_get_str(conf, CONF_printer);
+            if (printer)
+                dlg_editbox_set(ctrl, dlg, conf_get_str(conf, CONF_printer));
+            else if (conf_get_int(conf, CONF_visor))
+                dlg_editbox_set(ctrl, dlg, VISOR_STRING);
+            else
+                dlg_editbox_set(ctrl, dlg, PRINTER_DISABLED_STRING);
+            dlg_update_done(ctrl, dlg);
+        }
+        else {
+            printer = conf_get_str(conf, CONF_printer);
+            if (!printer)
+                printer = PRINTER_DISABLED_STRING;
+            dlg_editbox_set(ctrl, dlg, printer);
+            dlg_update_done(ctrl, dlg);
+        }
     } else if (event == EVENT_VALCHANGE) {
         char *printer = dlg_editbox_get(ctrl, dlg);
-        if (!strcmp(printer, PRINTER_DISABLED_STRING)) {
-			printer[0] = '\0';
-			conf_set_int(conf, CONF_printclip, 0);
-			conf_set_int(conf, CONF_visor, 0);
-		}
-		///Establecer flag de envio a texto
-		if (!strcmp(printer, PRINTCLIP_STRING))
-			conf_set_int(conf, CONF_printclip, 1);
-		else
-			conf_set_int(conf, CONF_printclip, 0);
-		///Establecer flag de envio a visor
-		if (!strcmp(printer, VISOR_STRING))
-			conf_set_int(conf, CONF_visor, 1);
-		else
-			conf_set_int(conf, CONF_visor, 0);
-        conf_set_str(conf, CONF_printer, printer);
-        sfree(printer);
+        
+        if (conf_get_int(conf, CONF_printclip)) {
+            if (!strcmp(printer, PRINTER_DISABLED_STRING)) {
+                //printer[0] = '\0';
+                conf_set_int(conf, CONF_printclip, 0);
+            }
+            else if (!strcmp(printer, PRINTCLIP_STRING)) {
+                //printer[0] = '\0';
+                conf_set_int(conf, CONF_printclip, 1);
+            }
+            conf_set_str(conf, CONF_printer, printer);
+            sfree(printer);
+        }
+        else if (conf_get_int(conf, CONF_visor)) {
+            if (!strcmp(printer, PRINTER_DISABLED_STRING)) {
+                //printer[0] = '\0';
+                conf_set_int(conf, CONF_visor, 0);
+            }
+            else if (!strcmp(printer, VISOR_STRING)) {
+                //printer[0] = '\0';
+                conf_set_int(conf, CONF_visor, 1);
+            }
+            conf_set_str(conf, CONF_printer, printer);
+            sfree(printer);
+        }
+        else {
+            if (!strcmp(printer, PRINTER_DISABLED_STRING))
+                printer[0] = '\0';
+            conf_set_str(conf, CONF_printer, printer);
+            sfree(printer);
+        }
     }
 }
 

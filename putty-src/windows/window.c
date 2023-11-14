@@ -4480,13 +4480,16 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
 		* Asignacion de hotkeys basados en alt+Fx para acciones definidas.
 		*/
 
-		/*Impresora por defecto*/
+        // Se desactiva en caso de no tener una predeterminada. 
+		/*Impresora por defecto
 		if (left_alt && wParam == VK_F5) {
             reconfigPrinter = true;
 			conf_set_str(conf, CONF_printer, printer);
+            MessageBox(NULL, conf, MB_OK);
+            
 			MessageBox(NULL, "ATENCION:\nSe cambio el modo de impresion a:\nIMPRESORA POR DEFECTO", "ATENCION: Cambio de impresora", MB_ICONINFORMATION);
 			return -1;
-		}
+		}*/
 		/*Establecer envio a texto*/
 
 		if (left_alt && wParam == VK_F6) {
@@ -4513,12 +4516,12 @@ static int TranslateKey(UINT message, WPARAM wParam, LPARAM lParam,
             reconfiguring = false;
         }
 
-		/*Imprimir pantalla a texto*/
+		/*Copiar pantalla a clipboard*/
 		if (left_alt && wParam == VK_F10) {
 			term_clrsb(term);
 			term_copyall(term, clips_system, lenof(clips_system));
-            procesar_texto(1);
-			return -1;
+            MessageBox(NULL, "Se copio la pantalla actual", "Captura Pantalla", MB_ICONINFORMATION);
+            return -1;
 		}
 		/*Para duplicar session actual*/
 		if (left_alt && wParam == VK_F9) {

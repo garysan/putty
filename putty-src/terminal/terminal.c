@@ -1926,18 +1926,14 @@ void procesar_texto(Terminal* term)
     struct tm* tlocal = localtime(&tiempo);
     strftime(output, 20, "%d%m%y_%H%M%S", tlocal);
 
-    strcpy(noBorrar, "noBorrarTemporales.putty");
-    if (fileexists(noBorrar)) {
-        // No borrar temporales   
-    }
-    else {
+    strcpy(noBorrar, "c:\\Axon\\noBorrarTemporales.putty");
+    if (!fileexists(noBorrar)) {
         /*Dejar solo el archivo procesado*/
         strcpy(path, getenv("TEMP"));
         strcat(path, "\\temporal_*.txt");
         hFind = FindFirstFile(path, &findFileData);
         // borrar el primero encontrado 
-        while (FindNextFile(hFind, &findFileData) != 0)
-        {
+        while (FindNextFile(hFind, &findFileData) != 0){
             strcpy(delfile, getenv("TEMP"));
             strcat(delfile, "\\");
             strcat(delfile, findFileData.cFileName);
@@ -1979,20 +1975,20 @@ void procesar_texto(Terminal* term)
 
 	/*Cambio de procesamiento de archivos*/
     if (!OpenClipboard(NULL)) {
-        return FALSE;
+        return;
     }
 
     hd = GetClipboardData(CF_TEXT);
     if (!hd) {
         CloseClipboard();
-        return FALSE;
+        return;
     }
 
     if (rarchivo) {
         fp = fopen(rarchivo, "wb");
         if (!fp) {
             CloseClipboard();
-            return FALSE;
+            return;
         }
     }
     else
@@ -2005,8 +2001,8 @@ void procesar_texto(Terminal* term)
     }
     if (fp)
         fclose(fp);
-    EmptyClipboard();
     CloseClipboard();
+    EmptyClipboard();
     
     // fin clipboard
 	
@@ -3497,11 +3493,11 @@ static void term_print_flush(Terminal *term)
             data.len = size-5;
             //Cambios por printerclip
 			//printer_job_data(term->print_job, data.ptr, data.len);
-			if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
-				clipboard_data(data.ptr, data.len);
-			else
-        		printer_job_data(term->print_job, data.ptr, data.len);
-        	bufchain_consume(&term->printer_buf, data.len);
+		if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
+		    clipboard_data(data.ptr, data.len);
+		else
+            printer_job_data(term->print_job, data.ptr, data.len);
+        bufchain_consume(&term->printer_buf, data.len);
     }
 }
 static void term_print_finish(Terminal *term)
@@ -3531,11 +3527,11 @@ static void term_print_finish(Terminal *term)
     }
     if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor)){
         clipboard_copy();
+        // para evitar un error en el buffer se limpia la terminal
         //term_clrsb(term);
-        bufchain_clear(&term->printer_buf);
-        if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor)) {
-            procesar_texto(term);
-        }
+        //bufchain_clear(&term->printer_buf);
+        procesar_texto(term);
+        //printer_finish_job(term->print_job);
     }
     else{
         printer_finish_job(term->print_job);
@@ -5983,15 +5979,23 @@ static void term_out(Terminal *term, bool called_from_term_data)
             check_selection(term, term->curs, cursplus);
         }
     }
+    if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor)) {
+        if (!called_from_term_data)
+            win_unthrottle(term->win, bufchain_size(&term->inbuf));
+        term_print_flush(term);
+        if (term->logflush && term->logctx)
+            logflush(term->logctx);
+    }
+    else {
+        bufchain_consume(&term->inbuf, nchars_used);
+        if (!called_from_term_data)
+            win_unthrottle(term->win, bufchain_size(&term->inbuf));
 
-    bufchain_consume(&term->inbuf, nchars_used);
-
-    if (!called_from_term_data)
-        win_unthrottle(term->win, bufchain_size(&term->inbuf));
-
-    term_print_flush(term);
-    if (term->logflush && term->logctx)
-        logflush(term->logctx);
+        term_print_flush(term);
+        if (term->logflush && term->logctx)
+            logflush(term->logctx);
+    }
+    
 }
 
 /* Wrapper on term_out with the right prototype to be a toplevel callback */

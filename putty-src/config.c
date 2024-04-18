@@ -674,7 +674,7 @@ static void printerbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
             printer_finish_enum(pe);
         }
         if (conf_get_int(conf, CONF_printclip) ) {
-            printer = conf_get_str(conf, CONF_printer);
+        printer = conf_get_str(conf, CONF_printer);
             if (printer)
                 dlg_editbox_set(ctrl, dlg, conf_get_str(conf, CONF_printer));
             else if (conf_get_int(conf, CONF_printclip))
@@ -695,8 +695,8 @@ static void printerbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
         }
         else {
             printer = conf_get_str(conf, CONF_printer);
-            if (!printer)
-                printer = PRINTER_DISABLED_STRING;
+        if (!printer)
+            printer = PRINTER_DISABLED_STRING;
             dlg_editbox_set(ctrl, dlg, printer);
             dlg_update_done(ctrl, dlg);
         }
@@ -728,12 +728,12 @@ static void printerbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
             sfree(printer);
         }
         else {
-            if (!strcmp(printer, PRINTER_DISABLED_STRING))
-                printer[0] = '\0';
-            conf_set_str(conf, CONF_printer, printer);
-            sfree(printer);
-        }
+        if (!strcmp(printer, PRINTER_DISABLED_STRING))
+            printer[0] = '\0';
+        conf_set_str(conf, CONF_printer, printer);
+        sfree(printer);
     }
+}
 }
 
 static void codepage_handler(dlgcontrol *ctrl, dlgparam *dlg,

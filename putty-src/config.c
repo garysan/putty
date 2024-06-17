@@ -697,8 +697,8 @@ static void printerbox_handler(dlgcontrol *ctrl, dlgparam *dlg,
             printer = conf_get_str(conf, CONF_printer);
         if (!printer)
             printer = PRINTER_DISABLED_STRING;
-            dlg_editbox_set(ctrl, dlg, printer);
-            dlg_update_done(ctrl, dlg);
+        dlg_editbox_set(ctrl, dlg, printer);
+        dlg_update_done(ctrl, dlg);
         }
     } else if (event == EVENT_VALCHANGE) {
         char *printer = dlg_editbox_get(ctrl, dlg);

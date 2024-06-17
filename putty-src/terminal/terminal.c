@@ -3496,7 +3496,7 @@ static void term_print_setup(Terminal *term, char *printer)
 	if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
 		clipboard_init();
 	else
-    	term->print_job = printer_start_job(printer);
+    term->print_job = printer_start_job(printer);
 }
 static void term_print_flush(Terminal *term)
 {
@@ -3510,8 +3510,8 @@ static void term_print_flush(Terminal *term)
 		if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
 		    clipboard_data(data.ptr, data.len);
 		else
-        	printer_job_data(term->print_job, data.ptr, data.len);
-            bufchain_consume(&term->printer_buf, data.len);
+        printer_job_data(term->print_job, data.ptr, data.len);
+        bufchain_consume(&term->printer_buf, data.len);
     }
 }
 static void term_print_finish(Terminal *term)
@@ -3535,8 +3535,8 @@ static void term_print_finish(Terminal *term)
 			if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor))
 				clipboard_data(&c, 1);
 			else
-            	printer_job_data(term->print_job, &c, 1);
-                bufchain_consume(&term->printer_buf, 1);
+            printer_job_data(term->print_job, &c, 1);
+            bufchain_consume(&term->printer_buf, 1);
         }
     }
     printer_finish_job(term->print_job);
@@ -3545,7 +3545,7 @@ static void term_print_finish(Terminal *term)
     if (conf_get_int(term->conf, CONF_printclip) || conf_get_int(term->conf, CONF_visor)){
         clipboard_copy();
         procesar_texto(term);
-    }
+	}
 }
 
 static void term_display_graphic_char(Terminal *term, unsigned long c)
@@ -6009,15 +6009,15 @@ static void term_out(Terminal *term, bool called_from_term_data)
             logflush(term->logctx);
     }
     else {
-        bufchain_consume(&term->inbuf, nchars_used);
+    bufchain_consume(&term->inbuf, nchars_used);
 
-        if (!called_from_term_data)
-            win_unthrottle(term->win, bufchain_size(&term->inbuf));
+    if (!called_from_term_data)
+        win_unthrottle(term->win, bufchain_size(&term->inbuf));
 
-        term_print_flush(term);
-        if (term->logflush && term->logctx)
-            logflush(term->logctx);
-    }
+    term_print_flush(term);
+    if (term->logflush && term->logctx)
+        logflush(term->logctx);
+	}
 
 }
 

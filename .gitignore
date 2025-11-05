@@ -8,11 +8,13 @@ build.ninja
 putty-src/CMakeCache.txt
 CMakeFiles/
 Debug/
+Release/
 Win32/
 cmake_install.cmake
 putty-src/shipped.txt
 *.dir/
 *.lib
+.vs
 .dirstamp
 .deps
 .DS_Store
